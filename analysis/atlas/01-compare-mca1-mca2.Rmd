@@ -1,0 +1,113 @@
+---
+title: "Compare Atlases"
+author: "Mervin M Fansler"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: 
+  html_document: 
+    code_folding: show
+    toc: true
+    toc_float: true
+---
+
+# Purpose
+
+<!--
+Explain why this document exists. 
+What are you trying to figure out?
+What are your expectations prior to the analysis?
+-->
+
+# Initialization
+
+## Libraries
+```{r libs, message=FALSE, warning=FALSE}
+library(magrittr)
+library(tidyverse)
+```
+
+## Parameters
+```{r set_params}
+set.seed(20210818)
+
+UTROME_GENE_NEW="data/utrs/utrome_genes_annotation.Rds"
+UTROME_TX_NEW="data/utrs/utrome_txs_annotation.Rds"
+UTROME_GENE_OLD="../atlas/data/utrs/utrome_genes_annotation.Rds"
+UTROME_TX_OLD="../atlas/data/utrs/utrome_txs_annotation.Rds"
+```
+
+## Functions
+```{r methods}
+
+```
+
+# Data
+## Loading
+```{r load_data, message=FALSE}
+df_gene_new <- readRDS(UTROME_GENE_NEW) %>% as_tibble
+df_gene_old <- readRDS(UTROME_GENE_OLD) %>% as_tibble
+df_tx_new <- readRDS(UTROME_TX_NEW) %>% as_tibble
+df_tx_old <- readRDS(UTROME_TX_OLD) %>% as_tibble
+```
+
+## Preprocessing
+```{r prepare_data}
+
+```
+
+# Analysis
+
+## Gene Classification
+
+```{r mca_multi_compare_dodge, fig.width=4, fig.height=4}
+bind_rows(df_gene_new %>% count(atlas.utr_type, name="n_gene") %>% mutate(atlas="MCA2"),
+          df_gene_old %>% count(atlas.utr_type, name="n_gene") %>% mutate(atlas="MCA1")) %>%
+    mutate(atlas.utr_type=fct_relevel(atlas.utr_type, "single")) %>%
+    ggplot(aes(x=atlas.utr_type, y=n_gene, fill=atlas)) +
+    geom_bar(stat='identity', position='dodge', color='black') +
+    geom_text(aes(label=n_gene), position=position_dodge(width=0.9), vjust=-0.5) +
+    scale_fill_manual(values=c("grey", "steelblue")) +
+    scale_y_continuous(expand=c(0,0,0.1,0)) +
+    labs(x="3' UTR Type", y="Genes", fill="Atlas") +
+    theme_bw()
+```
+
+
+```{r mca_multi_compare_stack, fig.width=3, fig.height=4}
+bind_rows(df_gene_new %>% count(atlas.utr_type, name="n_gene") %>% mutate(atlas="MCA2"),
+          df_gene_old %>% count(atlas.utr_type, name="n_gene") %>% mutate(atlas="MCA1")) %>%
+    mutate(atlas.utr_type=fct_relevel(atlas.utr_type, "single")) %>%
+    ggplot(aes(x=atlas, y=n_gene, fill=atlas.utr_type)) +
+    geom_bar(stat='identity', color='black', width=0.7) +
+    scale_fill_manual(values=c("grey", "steelblue")) +
+    scale_y_continuous(expand=c(0,0,0.1,0)) +
+    labs(x="Atlas", y="Genes", fill="UTR Type") +
+    theme_bw()
+```
+
+# Conclusion
+
+While there is an increase in number of 3' UTR genes compared to our previous atlas
+protocol, the number of multi-UTR genes is still far below 50%%, whereas the human 
+atlas is above 50%%.
+
+---
+
+# Runtime Details
+## Session Info
+```{r sesh_info, echo=FALSE}
+sessionInfo()
+```
+
+## Conda Environment
+```{bash comment="", echo=FALSE}
+if ! command -v conda &> /dev/null
+then
+  echo "Conda not detected."
+elif [ -z "${CONDA_PREFIX}" ]
+then
+  echo "No active Conda environment."
+else
+  echo "## Conda Environment YAML"
+  conda env export
+fi
+```

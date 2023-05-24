@@ -1,0 +1,141 @@
+---
+title: "PEAR Summary"
+author: "Mervin M Fansler"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: 
+  html_document: 
+    code_folding: show
+    toc: true
+    toc_float: true
+---
+
+# Purpose
+
+This document summarizes the results from running PEAR on the sequencing runs
+generated with the Mouse Cell Atlas v1.1 project. We expect to find a substantial 
+proportion of reads overlap and thus are capable of being merged.
+
+# Initialization
+
+## Libraries
+```{r libs, message=FALSE, warning=FALSE}
+library(magrittr)
+library(tidyverse)
+library(cowplot)
+```
+
+## Parameters
+```{r set_params}
+set.seed(20210818)
+```
+
+## Functions
+
+```{r methods}
+tissue_pattern <- c("Adult", "Fetal", "Neonatal", "Neontal", 
+                    "Cultured", "Primary", "cKit",
+                    "Involution", "Lactation", "Pregnancy", "Virgin") %>%
+    str_c(collapse="|") %>% str_c("(", ., ")")
+clean_tissue <- . %>% str_remove_all(pattern=tissue_pattern)
+```
+
+# Data
+## Loading
+```{r load_data, message=FALSE}
+df_samples <- read_csv("metadata/mca1_1.cell_annot.csv.gz", col_types="_c_cc___") %>%
+    distinct() %>%
+    mutate(tissue_id=tissue, tissue=clean_tissue(tissue))
+df_pear <- read_csv("qc/pear/pear_summary.csv", col_types='ciiiiddd')
+```
+
+## Preprocessing
+```{r prepare_data}
+df_pear %<>% left_join(df_samples, by=c("sample"="sample_id"))
+```
+
+# Analysis
+
+## Percent Assembled
+
+```{r plot_pct_assembled, fig.width=12, fig.height=4}
+df_pear %>%
+    mutate(sample=reorder(sample, -pct_assembled)) %>%
+    ggplot(aes(x=sample, y=pct_assembled)) +
+    geom_bar(stat='identity') +
+    scale_x_discrete(guide = guide_axis(angle=90)) +
+    labs(x=NULL, y="Percent reads assembled") +
+    theme_minimal_hgrid() +
+    theme(axis.text.x = element_text(size=8))
+```
+
+## Reads Assembled
+
+```{r plot_cts_assembled, fig.width=12, fig.height=4}
+df_pear %>%
+    mutate(sample=reorder(sample, -cts_assembled)) %>%
+    ggplot(aes(x=sample, y=cts_assembled)) +
+    geom_bar(stat='identity') +
+    scale_x_discrete(guide = guide_axis(angle=90)) +
+    labs(x=NULL, y="Reads assembled") +
+    theme_minimal_hgrid() +
+    theme(axis.text.x = element_text(size=8))
+```
+
+## Tissue representation
+### Percentage
+```{r plot_tissue_rep, fig.width=6, fig.height=4}
+df_pear %>% 
+    group_by(tissue) %>% 
+    summarize(cts_assembled=sum(cts_assembled)) %>% 
+    mutate(pct_representing=100*cts_assembled/sum(cts_assembled)) %>% 
+    mutate(tissue=reorder(tissue, -pct_representing)) %>%
+    ggplot(aes(x=tissue, y=pct_representing)) +
+    geom_bar(stat='identity') +
+    scale_x_discrete(guide = guide_axis(angle=45)) +
+    labs(x=NULL, y="Percent Total") +
+    theme_minimal_hgrid() +
+    theme(axis.text.x = element_text(size=8))
+```
+
+### Assembled Read Counts
+```{r plot_tissue_cts, fig.width=6, fig.height=4}
+df_pear %>% 
+    group_by(tissue) %>% 
+    summarize(cts_assembled=sum(cts_assembled)) %>% 
+    mutate(tissue=reorder(tissue, -cts_assembled)) %>%
+    ggplot(aes(x=tissue, y=cts_assembled)) +
+    geom_bar(stat='identity') +
+    geom_hline(yintercept=1e7, color='red', linetype='dashed') +
+    scale_x_discrete(guide = guide_axis(angle=45)) +
+    scale_y_log10() +
+    labs(x=NULL, y="Reads Assembled") +
+    theme_minimal_hgrid() +
+    theme(axis.text.x = element_text(size=8))
+```
+
+# Conclusion
+
+Some samples are showing less than 20% of reads assembling, but each sample has at least 10M assembled reads, excepting **Ovary_2**. There is no single tissue dominating the total reads.
+
+---
+
+# Runtime Details
+## Session Info
+```{r sesh_info, echo=FALSE}
+sessionInfo()
+```
+
+## Conda Environment
+```{bash comment="", echo=FALSE}
+if ! command -v conda &> /dev/null
+then
+  echo "Conda not detected."
+elif [ -z "${CONDA_PREFIX}" ]
+then
+  echo "No active Conda environment."
+else
+  echo "## Conda Environment YAML"
+  conda env export
+fi
+```
+

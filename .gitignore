@@ -1,0 +1,11 @@
+*~
+data/
+igv/
+*.DS_Store
+qc/hisat2/*.log
+img/cleavage_factor_motifs.*
+scripts/utrome.e*
+.mirv/
+.Rproj.user/
+*lilac*
+*xbio*

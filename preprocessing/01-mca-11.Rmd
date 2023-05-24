@@ -1,0 +1,161 @@
+---
+title: "MCA Metadata Preprocessing"
+author: "Mervin M Fansler"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: 
+  html_document: 
+    code_folding: show
+    toc: true
+    toc_float: true
+---
+
+# Purpose
+
+We reprocess the Mouse Cell Atlas 1.1 metadata to a CSV format that is ready to 
+use with a processing pipeline for annotating a mouse UTRome.
+
+# Initialization
+
+## Libraries
+```{r libs, message=FALSE, warning=FALSE}
+library(magrittr)
+library(tidyverse)
+library(readxl)
+```
+
+## Parameters
+```{r set_params}
+set.seed(20220711)
+FILE_MCA_1_1="metadata/MCA1.1_cell_info.xlsx"
+```
+
+## Functions
+
+```{r methods}
+str_clean <- . %>%
+    str_to_lower %>%
+    str_replace_all(fixed("+"), "pos") %>%
+    str_replace_all(fixed(" "), "-") %>%
+    str_replace(fixed("("), "-") %>%
+    str_replace(fixed(")"), "-") %>%
+    str_remove("-$")
+```
+
+# Data
+## Loading
+```{r load_data, message=FALSE}
+df_mca1 <- read_xlsx(FILE_MCA_1_1) %>% 
+    rename(cell_id=cellnames) %>%
+    mutate(cell_id=str_replace(cell_id, fixed("Male.fetal.Gonad_1"), "FetalMaleGonad_1"))
+```
+
+## Preprocessing
+```{r prepare_data}
+df_mca1_clean <- df_mca1 %>%
+    mutate(sample_id=str_remove(str_remove(cell_id, '\\.[ACGT]{18}$'), fixed(".")),
+           bx=str_extract(cell_id, "[ACGT]{18}$"),
+           cell_id=str_c(sample_id, ".", bx),
+           tissue=str_remove(tissue, fixed(".")),
+           celltype=str_clean(celltype),
+           celltype_id=str_c(cluster, "-", celltype)) %>%
+    select(cell_id, sample_id, bx, stage, tissue, cluster, celltype, celltype_id)
+```
+
+# Data Summary
+## Cells by stage
+```{r stage_summary, fig.width=3, fig.height=4}
+df_mca1_clean %>%
+    mutate(stage=factor(stage, levels=c("Fetal", "Neonatal", "Adult"))) %>%
+    ggplot(aes(x=stage, fill=stage)) +
+    geom_bar() +
+    scale_fill_grey() +
+    scale_y_continuous(expand=c(0,0,0.05,0)) +
+    labs(x="Stage", y="Cells") +
+    guides(fill='none') +
+    theme_light()
+```
+
+## Cells by sample
+```{r batch_summary, fig.width=4, fig.height=10}
+df_mca1_clean %>%
+    mutate(sample_id=fct_infreq(factor(sample_id))) %>%
+    ggplot(aes(x=sample_id, fill=tissue)) +
+    geom_bar() +
+    scale_fill_grey() +
+    scale_y_continuous(expand=c(0,0,0.05,0)) +
+    coord_flip() +
+    labs(x="Sample", y="Cells") +
+    guides(fill='none') +
+    theme_light()
+```
+
+## Cells by tissue
+```{r tissue_summary, fig.width=4, fig.height=6}
+df_mca1_clean %>%
+    mutate(tissue=fct_infreq(factor(tissue))) %>%
+    ggplot(aes(x=tissue)) +
+    geom_bar(fill='grey') +
+    scale_y_continuous(expand=c(0,0,0.05,0)) +
+    coord_flip() +
+    labs(x="Tissue", y="Cells") +
+    theme_light()
+```
+
+## Cells by cell type
+```{r celltype_summary, fig.width=4, fig.height=6}
+df_mca1_clean %>%
+    mutate(celltype=fct_infreq(factor(celltype))) %>%
+    ggplot(aes(x=celltype)) +
+    geom_bar(fill='grey') +
+    scale_y_continuous(expand=c(0,0,0.05,0)) +
+    coord_flip() +
+    labs(x="Cell Type", y="Cells") +
+    theme_light()
+```
+
+## Cells by cell type ID
+```{r celltype_id_summary, fig.width=12, fig.height=4}
+df_mca1_clean %>%
+    mutate(celltype_id=fct_infreq(factor(celltype_id))) %>%
+    ggplot(aes(x=celltype_id)) +
+    geom_bar(fill='grey') +
+    scale_x_discrete(guide=guide_axis(angle=90)) +
+    scale_y_continuous(expand=c(0,0,0.05,0)) +
+    labs(x="Cell Type ID", y="Cells") +
+    theme_light()
+```
+
+# Export
+```{r export}
+df_mca1_clean %>% write_csv("metadata/mca1_1.cell_annot.csv.gz")
+
+df_mca1_clean %>%
+    select(celltype_id, sample_id) %>%
+    distinct() %>%
+    arrange(celltype_id) %>%
+    write_csv("metadata/mca1_1.celltype_sample.csv")
+```
+
+
+
+---
+
+# Runtime Details
+## Session Info
+```{r sesh_info, echo=FALSE}
+sessionInfo()
+```
+
+## Conda Environment
+```{bash comment="", echo=FALSE}
+if ! command -v conda &> /dev/null
+then
+  echo "Conda not detected."
+elif [ -z "${CONDA_PREFIX}" ]
+then
+  echo "No active Conda environment."
+else
+  echo "## Conda Environment YAML"
+  conda env export
+fi
+```

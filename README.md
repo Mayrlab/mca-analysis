@@ -31,7 +31,7 @@ The primary source code is found in the `analysis` folder.
 Files are numbered in the original order of execution, though the order does not 
 imply strict necessity (most analyses here can be independently executed).
 
-The preprocessing/01-mca-11.Rmd` was run *before* 
+The `preprocessing/01-mca-11.Rmd` was run *before* 
 [the pipeline](https://github.com/Mayrlab/mca-utrome), and 
 generated `metadata` outputs that were used in the pipeline.
 

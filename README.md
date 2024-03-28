@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/645027154.svg)](https://zenodo.org/doi/10.5281/zenodo.10892185)
+
 ## Overview
 
 This repository provides analysis of the mouse cleavage site annotation resulting from running 

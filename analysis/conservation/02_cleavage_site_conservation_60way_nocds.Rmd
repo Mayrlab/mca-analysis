@@ -32,6 +32,7 @@ FILE_UTROME = sprintf("data/granges/utrome_gr_txs.e%d.t%d.gc25.pas3.f0.9999.w500
 FILE_BED = sprintf("data/bed/celltypes/celltypes.e%d.t%d.bed.gz", EPSILON, TPM)
 FILE_BED_UNLIKELY = sprintf("data/bed/cleavage-sites/utrome.unlikely.e%d.t%d.gc25.pas3.f0.9999.bed.gz",
                             EPSILON, TPM)
+FILE_BED_RANDOM = "data/bed/random_sites.bed"
 
 PHASTCONS="phastCons60way"
 PHASTCONS_ID=str_c(PHASTCONS,".UCSC.mm10")
@@ -110,12 +111,33 @@ gr_ip %<>%
            origin="IP")
 ```
 
+## Random Background
+```{r random_sites}
+gr_random <- read_bed(FILE_BED_RANDOM) %>%
+    anchor_3p %>%
+    mutate(n_celltypes=count_overlaps_directed(mutate(., width=0), gr_sites)) %>%
+    mutate(width=WIN_SIZE) %>%
+    shift_downstream(WIN_SIZE/2) %>%
+    filter(start >= 0) ## one of the mito positions is too close to end
+
+grl_diff <- GenomicRanges::subtract(gr_random, gr_cds)
+idx_valid <- lengths(grl_diff) %>% unlist %>% { which(. == 1) }
+
+gr_random %<>% 
+    `[`(idx_valid) %>%
+    mutate(score=gscores(x=phastcons_mm10, unlist(grl_diff[idx_valid]), scores.only=TRUE),
+           origin="Random")
+```
+
+
+
 ## Scores
 ```{r create_subgroups}
 label_origin = c("GENCODE"="Common",
                  "UTRome"="UTRome\nOnly",
                  "GENCODE_only"="GENCODE\nOnly",
-                 "IP"="IP")
+                 "IP"="IP",
+                 "Random"="Random")
 
 df_scores <- as_tibble(gr_cleavage) %>%
     mutate(origin_split=ifelse(n_celltypes == 0, "GENCODE_only", origin),
@@ -134,6 +156,16 @@ df_scores <- as_tibble(gr_cleavage) %>%
 
 df_combined <- bind_rows(as_tibble(gr_cleavage), as_tibble(gr_ip)) %>%
     mutate(origin_split=ifelse(origin != "IP" & n_celltypes == 0, "GENCODE_only", origin),
+           origin_split=factor(label_origin[origin_split], levels=label_origin),
+           n_celltypes_bin=case_when(
+               n_celltypes == 0 ~ "none",
+               n_celltypes < N_CTS_LOW ~ "low",
+               n_celltypes < N_CTS_HIGH ~ "mid",
+               TRUE ~ "high"
+           ) %>% factor(levels=c("none", "low", "mid", "high")))
+
+df_combined_rand <- bind_rows(as_tibble(gr_cleavage), as_tibble(gr_ip), as_tibble(gr_random)) %>%
+    mutate(origin_split=ifelse((!origin %in% c("IP", "Random")) & n_celltypes == 0, "GENCODE_only", origin),
            origin_split=factor(label_origin[origin_split], levels=label_origin),
            n_celltypes_bin=case_when(
                n_celltypes == 0 ~ "none",
@@ -231,6 +263,15 @@ df_combined %>%
     theme_bw()
 ```
 
+## Random
+```{r plot_rand, fig.width=4, fig.height=4}
+df_combined_rand %>%
+    ggplot(aes(x=origin_split, y=score)) +
+    geom_boxplot(outlier.alpha=0) +
+    labs(x=NULL, y=AXIS_LABEL) +
+    theme_bw()
+```
+
 ## UTR Type
 ```{r plot_type, fig.width=5, fig.height=4}
 df_scores %>%
@@ -270,6 +311,20 @@ ggsave("img/sq/fig1e-mm10-phastcons60-som2.pdf", width=4, height=4, dpi=300)
 ## Supporting Celltypes Internal Priming
 ```{r plt_n_celltypes_ip, fig.width=10, fig.height=4}
 df_combined %T>% {
+        df_counts <<- count(., origin_split, n_celltypes_bin, name="n_genes")
+    } %>%
+    ggplot(aes(x=origin_split, y=score, fill=n_celltypes_bin)) +
+    geom_boxplot(outlier.alpha=0, position=position_dodge(width=0.9)) +
+    geom_label(data=df_counts, aes(label=n_genes, x=origin_split, y=-0.05), 
+               position=position_dodge(width=0.9), show.legend=FALSE) +
+    scale_fill_grey(start=0.3, end=0.9) +
+    labs(x=NULL, y=AXIS_LABEL, fill="Cell Types\nExpressed") +
+    theme_bw()
+```
+
+## Supporting Celltypes Random
+```{r plt_n_celltypes_rand, fig.width=12, fig.height=4}
+df_combined_rand %T>% {
         df_counts <<- count(., origin_split, n_celltypes_bin, name="n_genes")
     } %>%
     ggplot(aes(x=origin_split, y=score, fill=n_celltypes_bin)) +

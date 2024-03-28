@@ -36,6 +36,7 @@ FILE_UTROME = sprintf("data/granges/utrome_gr_txs.e%d.t%d.gc25.pas3.f0.9999.w500
 FILE_BED = sprintf("data/bed/celltypes/celltypes.e%d.t%d.bed.gz", EPSILON, TPM)
 FILE_BED_UNLIKELY = sprintf("data/bed/cleavage-sites/utrome.unlikely.e%d.t%d.gc25.pas3.f0.9999.bed.gz",
                             EPSILON, TPM)
+FILE_BED_RANDOM = "data/bed/random_sites.bed"
 ```
 
 ## Functions
@@ -152,6 +153,12 @@ gr_sites <- read_bed(FILE_BED) %>%
     keepStandardChromosomes(pruning.mode="coarse") %>%
     anchor_center() %>%
     mutate(width=EPSILON)
+
+gr_random <- read_bed(FILE_BED_RANDOM) %>% 
+    `seqlevelsStyle<-`("UCSC") %>%
+    keepStandardChromosomes(pruning.mode="coarse") %>%
+    anchor_center() %>%
+    mutate(width=WIN_SIZE)
 ```
 
 ## Mouse UTRome Transcripts
@@ -243,6 +250,37 @@ df_main_split %>%
     theme_bw()
 ```
 
+## Main Split with Random - Extended
+```{r detect_main1_rand}
+df_main_split_rand <- list("Common"=gr_common,
+                      "UTRome\nOnly"=gr_novel,
+                      "GENCODE\nOnly"=gr_ctnone_gc,
+                      "Random"=gr_random) %>%
+    lapply(get_motif_combinations1) %>%
+    bind_rows(.id="id") %>% 
+    mutate(id=factor(id, levels=c("Common", "UTRome\nOnly", "GENCODE\nOnly", "Random")))
+```
+
+```{r plot_main_count1_rand, fig.width=5, fig.height=4, warning=FALSE}
+df_main_split_rand %>%
+    ggplot(aes(x=id, fill=label)) + 
+    geom_bar(color='black', size=0.1, width=0.8) + 
+    scale_fill_grey(start=0.95, end=0.2) +
+    scale_y_continuous(expand=c(0,0,0.05,0)) +
+    labs(x=NULL, y="Cleavage Sites", fill="Motifs\nDetected") +
+    theme_bw()
+```
+
+```{r plot_main_frac1_rand, fig.width=5, fig.height=4, warning=FALSE}
+df_main_split_rand %>%
+    ggplot(aes(x=id, fill=label)) + 
+    geom_bar(position="fill", color='black', size=0.1, width=0.8) + 
+    scale_fill_grey(start=0.95, end=0.2) +
+    scale_y_continuous(expand=c(0,0,0.05,0)) +
+    labs(x=NULL, y="Fraction of Cleavage Sites", fill="Motifs\nDetected") +
+    theme_bw()
+```
+
 ## Main Split - Coarse
 ```{r detect_main2}
 df_main_split <- list("Common"=gr_common,
@@ -252,6 +290,7 @@ df_main_split <- list("Common"=gr_common,
     bind_rows(.id="id") %>%
     mutate(id=factor(id, levels=c("Common", "UTRome\nOnly", "GENCODE\nOnly")))
 ```
+
 
 ```{r plot_main_count2, fig.width=4, fig.height=4, warning=FALSE}
 df_main_split %>%
@@ -265,6 +304,37 @@ df_main_split %>%
 
 ```{r plot_main_frac2, fig.width=4, fig.height=4, warning=FALSE}
 df_main_split %>%
+    ggplot(aes(x=id, fill=label)) + 
+    geom_bar(position="fill", color='black', size=0.1, width=0.8) + 
+    scale_fill_grey(start=0.95, end=0.2) +
+    scale_y_continuous(expand=c(0,0,0.05,0)) +
+    labs(x=NULL, y="Fraction of Cleavage Sites", fill="Motifs\nDetected") +
+    theme_bw()
+```
+
+## Main Split with Random - Coarse
+```{r detect_main2_rand}
+df_main_split_rand <- list("Common"=gr_common,
+                      "UTRome\nOnly"=gr_novel,
+                      "GENCODE\nOnly"=gr_ctnone_gc,
+                      "Random"=gr_random) %>%
+    lapply(get_motif_combinations2) %>%
+    bind_rows(.id="id") %>%
+    mutate(id=factor(id, levels=c("Common", "UTRome\nOnly", "GENCODE\nOnly", "Random")))
+```
+
+```{r plot_main_count2_rand, fig.width=5, fig.height=4, warning=FALSE}
+df_main_split_rand %>%
+    ggplot(aes(x=id, fill=label)) + 
+    geom_bar(color='black', size=0.1, width=0.8) + 
+    scale_fill_grey(start=0.95, end=0.2) +
+    scale_y_continuous(expand=c(0,0,0.05,0)) +
+    labs(x=NULL, y="Cleavage Sites", fill="Motifs\nDetected") +
+    theme_bw()
+```
+
+```{r plot_main_frac2_rand, fig.width=5, fig.height=4, warning=FALSE}
+df_main_split_rand %>%
     ggplot(aes(x=id, fill=label)) + 
     geom_bar(position="fill", color='black', size=0.1, width=0.8) + 
     scale_fill_grey(start=0.95, end=0.2) +
@@ -296,6 +366,37 @@ df_main_split %>%
 
 ```{r plot_main_frac3, fig.width=4, fig.height=4, warning=FALSE}
 df_main_split %>%
+    ggplot(aes(x=id, fill=label)) + 
+    geom_bar(position="fill", color='black', size=0.1, width=0.8) + 
+    scale_fill_grey(start=0.95, end=0.2) +
+    scale_y_continuous(expand=c(0,0,0.05,0)) +
+    labs(x=NULL, y="Fraction of Cleavage Sites", fill="Motifs\nDetected") +
+    theme_bw()
+```
+
+## Main Split with Random - Coarse v2
+```{r detect_main3_rand}
+df_main_split_rand <- list("Common"=gr_common,
+                      "UTRome\nOnly"=gr_novel,
+                      "GENCODE\nOnly"=gr_ctnone_gc,
+                      "Random"=gr_random) %>%
+    lapply(get_motif_combinations3) %>%
+    bind_rows(.id="id") %>%
+    mutate(id=factor(id, levels=c("Common", "UTRome\nOnly", "GENCODE\nOnly", "Random")))
+```
+
+```{r plot_main_count3_rand, fig.width=5, fig.height=4, warning=FALSE}
+df_main_split_rand %>%
+    ggplot(aes(x=id, fill=label)) + 
+    geom_bar(color='black', size=0.1, width=0.8) + 
+    scale_fill_grey(start=0.95, end=0.2) +
+    scale_y_continuous(expand=c(0,0,0.05,0)) +
+    labs(x=NULL, y="Cleavage Sites", fill="Motifs\nDetected") +
+    theme_bw()
+```
+
+```{r plot_main_frac3_rand, fig.width=5, fig.height=4, warning=FALSE}
+df_main_split_rand %>%
     ggplot(aes(x=id, fill=label)) + 
     geom_bar(position="fill", color='black', size=0.1, width=0.8) + 
     scale_fill_grey(start=0.95, end=0.2) +
@@ -339,6 +440,44 @@ df_main_split %>%
 ggsave("img/sq/fig1c-cf-motifs-mca.pdf", 
        width=4, height=4, dpi=300)
 ```
+
+## Main Split Random - Coarse v3
+```{r detect_main4_rand}
+df_main_split_rand <- list("Common"=gr_common,
+                      "UTRome\nOnly"=gr_novel,
+                      "GENCODE\nOnly"=gr_ctnone_gc,
+                      "Random"=gr_random) %>%
+    lapply(get_motif_combinations4) %>%
+    bind_rows(.id="id") %>%
+    mutate(id=factor(id, levels=c("Common", "UTRome\nOnly", "GENCODE\nOnly", "Random")))
+```
+
+```{r plot_main_count4_rand, fig.width=5, fig.height=4, warning=FALSE}
+df_main_split_rand %>%
+    ggplot(aes(x=id, fill=label)) + 
+    geom_bar(color='black', size=0.1, width=0.8) + 
+    scale_fill_grey(start=0.95, end=0.2) +
+    scale_y_continuous(expand=c(0,0,0.05,0)) +
+    labs(x=NULL, y="Cleavage Sites", fill="Motifs\nDetected") +
+    theme_bw()
+```
+
+```{r plot_main_frac4_rand, fig.width=5, fig.height=4, warning=FALSE}
+df_main_split_rand %>%
+    ggplot(aes(x=id, fill=label)) + 
+    geom_bar(position="fill", color='black', size=0.1, width=0.8) + 
+    scale_fill_grey(start=0.95, end=0.2) +
+    scale_y_continuous(expand=c(0,0,0.05,0)) +
+    labs(x=NULL, y="Fraction of Cleavage Sites", fill="Motifs\nDetected") +
+    theme_bw()
+```
+
+### Export
+```{r export_rand}
+ggsave("img/sq/fig1c-cf-motifs-mca-rand.pdf", 
+       width=5, height=4, dpi=300)
+```
+
 
 
 ---

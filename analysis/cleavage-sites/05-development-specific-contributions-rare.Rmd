@@ -96,6 +96,8 @@ df_cs_class %>%
     coord_flip() +
     labs(x=NULL, y="Cleavage Sites", fill="Source") +
     theme_bw()
+
+ggsave("img/sq/sup1b-cleavage-cts-dev-stages.pdf", width=4, height=3, dpi=300)
 ```
 
 ```{r plt_n_cs_fill, fig.height=3, fig.width=4}
@@ -107,6 +109,8 @@ df_cs_class %>%
     coord_flip() +
     labs(x=NULL, y="Fraction of Cleavage Sites", fill="Source") +
     theme_bw()
+
+
 ```
 
 ## Novel Sites Order
@@ -120,6 +124,8 @@ df_cs_class %>%
     coord_flip() +
     labs(x=NULL, y="Cleavage Sites", fill="Source") +
     theme_bw()
+
+ggsave("img/sq/sup1b-cleavage-cts-dev-stages.pdf", width=4, height=3, dpi=300)
 ```
 
 
@@ -151,6 +157,8 @@ df_cs_class %>%
     coord_flip() +
     labs(x=NULL, y="Cleavage Site Detection Rate\n(Sites/1K Cells)", fill="Source") +
     theme_bw()
+
+ggsave("img/sq/sup1b-cleavage-rate-dev-stages.pdf", width=4, height=3, dpi=300)
 ```
 
 ```{r plt_rate_cs_stacked, fig.height=4, fig.width=3}

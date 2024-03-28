@@ -1,0 +1,171 @@
+---
+title: "Cleavage Site Cell Type Expression"
+author: "Mervin M Fansler"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: 
+  html_document: 
+    code_folding: show
+    toc: true
+    toc_float: true
+---
+
+# Initialization
+## Libraries
+```{r libs, message=FALSE, warning=FALSE}
+library(plyranges)
+library(tidyverse)
+library(magrittr)
+```
+
+## Parameters
+```{r params}
+EPSILON = 30
+TPM = 5
+N_CTS_LOW = 10
+N_CTS_HIGH = 80
+MIN_MAJOR=0.10
+
+FILE_UTROME = sprintf("data/granges/utrome_gr_txs.e%d.t%d.gc25.pas3.f0.9999.w500.Rds", EPSILON, TPM)
+FILE_BED = sprintf("data/bed/celltypes/celltypes.e%d.t%d.bed.gz", EPSILON, TPM)
+FILE_CONS = "data/conservation/df_phastCons60way_100nt_masked.tsv.gz"
+```
+
+# Load Data
+
+## Cleavage Sites by Cell Type
+```{r load_sites}
+gr_sites <- read_bed(FILE_BED) %>% 
+    `seqlevelsStyle<-`("UCSC") %>%
+    keepStandardChromosomes(pruning.mode="coarse") %>%
+    anchor_center() %>%
+    mutate(width=EPSILON)
+```
+
+## Conservation Scores
+```{r load_cons}
+df_cons <- read_tsv(FILE_CONS)
+```
+
+## Mouse UTRome Transcripts
+```{r load_txs, message=FALSE, warning=FALSE}
+## Load all transcripts
+gr_txs <- readRDS(FILE_UTROME)
+
+df_all <- gr_txs %>%
+    as_data_frame %>%
+    distinct(gene_id, transcript_id)
+
+## overlap cleavage sites
+df_celltypes <- gr_txs %>% 
+    anchor_3p %>%
+    mutate(width=0) %>% 
+    find_overlaps_directed(gr_sites) %>%
+    as_data_frame %>%
+    group_by(gene_id) %>%
+    mutate(n_celltypes_gene=length(unique(name))) %>%
+    group_by(transcript_id) %>%
+    mutate(n_celltypes_tx=length(unique(name))) %>%
+    ungroup() %>%
+    distinct(gene_id, transcript_id, n_celltypes_gene, n_celltypes_tx) %>%
+    left_join(x=df_all, by=c("gene_id", "transcript_id")) %>%
+    group_by(gene_id) %>%
+    mutate(n_celltypes_gene=max(n_celltypes_gene, na.rm=TRUE),
+           n_celltypes_gene=ifelse(n_celltypes_gene == -Inf, 0, n_celltypes_gene),
+           n_celltypes_tx=ifelse(is.na(n_celltypes_tx) & n_celltypes_gene != 0, 0, n_celltypes_tx)) %>%
+    ungroup() %>%
+    mutate(frac_celltypes=n_celltypes_tx/n_celltypes_gene)
+```
+
+# Plots
+## Cleavage Site Scores
+```{r plt_hist, fig.width=4, fig.height=2}
+df_celltypes %>%
+    ggplot(aes(x=frac_celltypes)) +
+    geom_histogram(bins=102, fill='grey80', color='black', linewidth=0.1) +
+    scale_y_continuous(expand=c(0,0,0.05,0)) +
+    labs(x="Fraction Cell Types", y="Cleavage Sites") +
+    theme_bw()
+```
+
+## PhastCons versus Cleavage Site Scores
+```{r plt_aparent, fig.width=5, fig.height=5}
+df_celltypes %>%
+    left_join(df_cons, by='transcript_id') %>%
+    ggplot(aes(y=phastCons60way, x=frac_celltypes)) +
+    geom_point(size=0.1, alpha=0.2) +
+    labs(y="Mean phastCons 60-way score [100 nt]",
+         x="Fraction of Cell Types") +
+    theme_bw()
+
+df_celltypes %>%
+    left_join(df_cons, by='transcript_id') %>%
+    ggplot(aes(y=phastCons60way, x=frac_celltypes)) +
+    geom_point(size=0.1, alpha=0.2) +
+    geom_smooth() +
+    labs(y="Mean phastCons 60-way score [100 nt]",
+         x="Fraction of Cell Types") +
+    theme_bw()
+
+df_celltypes %>%
+    left_join(df_cons, by='transcript_id') %>%
+    ggplot(aes(y=phastCons60way, x=n_celltypes_tx)) +
+    geom_point(size=0.1, alpha=0.2) +
+    labs(y="Mean phastCons 60-way score [100 nt]",
+         x="Number of Cell Types") +
+    theme_bw()
+```
+
+## PhastCons versus Cleavage Site Scores
+```{r plt_phastcons_boxplot, fig.width=4, fig.height=4}
+df_celltypes %>%
+    mutate(frac_celltypes_bin=cut(frac_celltypes, breaks=c(-Inf,0,0.25,0.5,0.75,1), 
+                                  labels=c("0", "(0,0.25]", "(0.25,0.50]", 
+                                           "(0.50,0.75]", "(0.75,1]"))) %>%
+    left_join(df_cons, by='transcript_id') %>%
+    filter(!is.na(frac_celltypes)) %>%
+    ggplot(aes(y=phastCons60way, x=frac_celltypes_bin)) +
+    geom_boxplot(outlier.shape=NA) +
+    labs(y="Mean phastCons 60-way score [100 nt]",
+         x="Fraction of Cell Types") +
+    theme_bw()
+```
+
+## Major vs Minor Sites
+```{r fig_major_sites, fig.width=4, fig.height=4}
+df_gene_sites <- df_celltypes %>%
+    filter(n_celltypes_gene > 0) %>%
+    group_by(gene_id) %>%
+    summarize(n_major=sum(frac_celltypes >= MIN_MAJOR),
+              n_minor=sum(frac_celltypes < MIN_MAJOR)) %>%
+    mutate(n_major_lbl=ifelse(n_major > 5, "6+", as.character(n_major)),
+           n_minor_lbl=ifelse(n_minor > 5, "6+", as.character(n_minor)))
+
+df_counts <- df_gene_sites %>%
+  group_by(n_major_lbl) %>%
+  summarize(n=n())
+
+df_gene_sites %>%
+  mutate(utr_type=ifelse(n_major > 1, "multi", "single")) %>%
+  ggplot(aes(x=n_major_lbl)) +
+  geom_histogram(aes(fill=utr_type), stat='count', color='black') +
+  geom_text(data=df_counts, mapping=aes(label=n, y=n+500)) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  scale_fill_manual(values=c("#6E90BB", "lightgrey")) +
+  labs(x="Major CS per gene", y="Genes") +
+  guides(fill='none') +
+  cowplot::theme_minimal_hgrid()
+
+ggsave("img/sq/sup1k-n-major-cs-pct10.mouse.pdf", width=4, height=4, dpi=300)
+```
+
+## Export
+```{r export}
+write_tsv(df_celltypes, "data/celltype_score/celltype_scores.tsv")
+```
+
+---
+
+# Session Info
+```{r sesh_info, echo=FALSE}
+sessionInfo()
+```

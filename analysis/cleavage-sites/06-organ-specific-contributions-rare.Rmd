@@ -119,6 +119,8 @@ df_cs_class %>%
     coord_flip() +
     labs(x=NULL, y="Cleavage Sites", fill="Source") +
     theme_bw()
+
+ggsave("img/sq/sup1c-cleavage-cts-organ.pdf", width=4, height=3, dpi=300)
 ```
 
 
@@ -150,6 +152,8 @@ df_cs_class %>%
     coord_flip() +
     labs(x=NULL, y="Cleavage Site Detection Rate\n(Sites/1K Cells)", fill="Source") +
     theme_bw()
+
+ggsave("img/sq/sup1c-cleavage-rates-organ.pdf", width=4, height=3, dpi=300)
 ```
 
 
